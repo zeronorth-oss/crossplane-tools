@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	xptypes "github.com/crossplane/crossplane-tools/internal/types"
+	"github.com/pkg/errors"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -30,7 +31,7 @@ import (
 // given managed resource, if needed.
 func NewResolveReferences(traverser *xptypes.Traverser, receiver, clientPath, referencePkgPath string) New {
 	return func(f *jen.File, o types.Object) {
-		n, ok := o.Type().(*types.Named)
+		namedType, ok := o.Type().(*types.Named)
 		if !ok {
 			return
 		}
@@ -41,8 +42,8 @@ func NewResolveReferences(traverser *xptypes.Traverser, receiver, clientPath, re
 			Field: refProcessor,
 			Named: xptypes.NamedProcessorChain{},
 		}
-		if err := traverser.Traverse(n, cfg); err != nil {
-			panic(fmt.Sprintf("cannot traverse the type tree of %s", n.Obj().Name()))
+		if err := traverser.Traverse(namedType, cfg); err != nil {
+			panic(errors.Wrapf(err, "cannot traverse the type tree of %s", namedType.Obj().Name()))
 		}
 		refs := refProcessor.GetReferences()
 		if len(refs) == 0 {
@@ -128,8 +129,10 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 
 		setResolvedValue := currentValuePath.Clone().Op("=").Id("rsp").Dot("ResolvedValue")
 		if ref.IsPointer {
-			setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, "ToPtrValue").Call(jen.Id("rsp").Dot("ResolvedValue"))
-			currentValuePath = jen.Qual(referencePkgPath, "FromPtrValue").Call(currentValuePath)
+			toPtrValueQual := getToPtrValueQual(ref.SourceType)
+			fromPtrValueQual := getFromPtrValueQual(ref.SourceType)
+			setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, toPtrValueQual).Call(jen.Id("rsp").Dot("ResolvedValue"))
+			currentValuePath = jen.Qual(referencePkgPath, fromPtrValueQual).Call(currentValuePath)
 		}
 		return &jen.Statement{
 			jen.List(jen.Id("rsp"), jen.Err()).Op("=").Id("r").Dot("Resolve").Call(
@@ -171,8 +174,10 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 
 		setResolvedValues := currentValuePath.Clone().Op("=").Id("mrsp").Dot("ResolvedValues")
 		if ref.IsPointer {
-			setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, "ToPtrValues").Call(jen.Id("mrsp").Dot("ResolvedValues"))
-			currentValuePath = jen.Qual(referencePkgPath, "FromPtrValues").Call(currentValuePath)
+			toPtrValuesQual := getToPtrValuesQual(ref.SourceType)
+			fromPtrValuesQual := getFromPtrValuesQual(ref.SourceType)
+			setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, toPtrValuesQual).Call(jen.Id("mrsp").Dot("ResolvedValues"))
+			currentValuePath = jen.Qual(referencePkgPath, fromPtrValuesQual).Call(currentValuePath)
 		}
 
 		return &jen.Statement{
@@ -200,5 +205,37 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 			referenceFieldPath.Clone().Op("=").Id("mrsp").Dot("ResolvedReferences"),
 			jen.Line(),
 		}
+	}
+}
+
+func getToPtrValueQual(t types.Type) string {
+	if types.Identical(t, types.NewPointer(types.Typ[types.Float64])) {
+		return "ToFloatPtrValue"
+	} else {
+		return "ToPtrValue"
+	}
+}
+
+func getFromPtrValueQual(t types.Type) string {
+	if types.Identical(t, types.NewPointer(types.Typ[types.Float64])) {
+		return "FromFloatPtrValue"
+	} else {
+		return "FromPtrValue"
+	}
+}
+
+func getToPtrValuesQual(t types.Type) string {
+	if types.Identical(t, types.NewSlice(types.NewPointer(types.Typ[types.Float64]))) {
+		return "ToFloatPtrValues"
+	} else {
+		return "ToPtrValues"
+	}
+}
+
+func getFromPtrValuesQual(t types.Type) string {
+	if types.Identical(t, types.NewSlice(types.NewPointer(types.Typ[types.Float64]))) {
+		return "FromFloatPtrValues"
+	} else {
+		return "FromPtrValues"
 	}
 }

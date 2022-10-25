@@ -63,6 +63,8 @@ type Reference struct {
 
 	// IsPointer tells whether the current value type is a pointer kind.
 	IsPointer bool
+
+	SourceType types.Type
 }
 
 // ReferenceProcessorOption is used to configure ReferenceProcessor.
@@ -141,7 +143,9 @@ func (rp *ReferenceProcessor) Process(_ *types.Named, f *types.Var, _, comment s
 		selectorFieldName = values[0]
 	}
 	path := append([]string{rp.Receiver}, parentFields...)
+
 	rp.refs = append(rp.refs, Reference{
+		SourceType:          f.Type(),
 		RemoteType:          getTypeCodeFromPath(refType),
 		RemoteListType:      getTypeCodeFromPath(refType, "List"),
 		Extractor:           extractorPath,
