@@ -133,7 +133,10 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 			setResolvedValue = &jen.Statement{
 				jen.Var().Id(id).Op(ref.SourceType.String()),
 				jen.Line(),
-				jen.If(jen.Qual(referencePkgPath, "ToPtrValue").Call(jen.Id("rsp").Dot("ResolvedValue"), jen.Id(id)).Op("!=").Nil()).Block(
+				jen.If(
+					jen.Err().Op("=").Qual(referencePkgPath, "ToPtrValue").Call(jen.Id("rsp").Dot("ResolvedValue"), jen.Id(id)),
+					jen.Err().Op("!=").Nil(),
+				).Block(
 					jen.Return(jen.Qual("github.com/pkg/errors", "Wrap").Call(jen.Err(), jen.Lit(strings.Join(ref.GoValueFieldPath, ".")))),
 				),
 				jen.Line(),
@@ -189,7 +192,10 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 			setResolvedValues = &jen.Statement{
 				jen.Id(id).Op(":=").Make(jen.Op(ref.SourceType.String()), jen.Len(jen.Id("mrsp").Dot("ResolvedValues"))),
 				jen.Line(),
-				jen.If(jen.Qual(referencePkgPath, "ToPtrValues").Call(jen.Id("mrsp").Dot("ResolvedValues"), jen.Id(id)).Op("!=").Nil()).Block(
+				jen.If(
+					jen.Err().Op("=").Qual(referencePkgPath, "ToPtrValues").Call(jen.Id("mrsp").Dot("ResolvedValues"), jen.Id(id)),
+					jen.Err().Op("!=").Nil(),
+				).Block(
 					jen.Return(jen.Qual("github.com/pkg/errors", "Wrap").Call(jen.Err(), jen.Lit(strings.Join(ref.GoValueFieldPath, ".")))),
 				),
 				jen.Line(),
