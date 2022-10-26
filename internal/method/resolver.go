@@ -127,13 +127,23 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 		referenceFieldPath := prefixPath.Clone().Dot(ref.GoRefFieldName)
 		selectorFieldPath := prefixPath.Clone().Dot(ref.GoSelectorFieldName)
 
-		setResolvedValue := currentValuePath.Clone().Op("=").Id("rsp").Dot("ResolvedValue")
+		var setResolvedValue *jen.Statement
 		if ref.IsPointer {
-			toPtrValueQual := getToPtrValueQual(ref.SourceType)
-			fromPtrValueQual := getFromPtrValueQual(ref.SourceType)
-			setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, toPtrValueQual).Call(jen.Id("rsp").Dot("ResolvedValue"))
-			currentValuePath = jen.Qual(referencePkgPath, fromPtrValueQual).Call(currentValuePath)
+			id := fmt.Sprintf("v%s", ref.SourceName)
+			setResolvedValue = &jen.Statement{
+				jen.Var().Id(id).Op(ref.SourceType.String()),
+				jen.Line(),
+				jen.If(jen.Qual(referencePkgPath, "ToPtrValue").Call(jen.Id("rsp").Dot("ResolvedValue"), jen.Id(id)).Op("!=").Nil()).Block(
+					jen.Return(jen.Qual("github.com/pkg/errors", "Wrap").Call(jen.Err(), jen.Lit(strings.Join(ref.GoValueFieldPath, ".")))),
+				),
+				jen.Line(),
+				currentValuePath.Clone().Op("=").Id(id),
+			}
+			currentValuePath = jen.Qual(referencePkgPath, "FromPtrValue").Call(currentValuePath)
+		} else {
+			setResolvedValue = currentValuePath.Clone().Op("=").Id("rsp").Dot("ResolvedValue")
 		}
+
 		return &jen.Statement{
 			jen.List(jen.Id("rsp"), jen.Err()).Op("=").Id("r").Dot("Resolve").Call(
 				jen.Id("ctx"),
@@ -172,12 +182,22 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 		referenceFieldPath := prefixPath.Clone().Dot(ref.GoRefFieldName)
 		selectorFieldPath := prefixPath.Clone().Dot(ref.GoSelectorFieldName)
 
-		setResolvedValues := currentValuePath.Clone().Op("=").Id("mrsp").Dot("ResolvedValues")
+		var setResolvedValues *jen.Statement
+
 		if ref.IsPointer {
-			toPtrValuesQual := getToPtrValuesQual(ref.SourceType)
-			fromPtrValuesQual := getFromPtrValuesQual(ref.SourceType)
-			setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, toPtrValuesQual).Call(jen.Id("mrsp").Dot("ResolvedValues"))
-			currentValuePath = jen.Qual(referencePkgPath, fromPtrValuesQual).Call(currentValuePath)
+			id := fmt.Sprintf("v%s", ref.SourceName)
+			setResolvedValues = &jen.Statement{
+				jen.Id(id).Op(":=").Make(jen.Op(ref.SourceType.String()), jen.Len(jen.Id("mrsp").Dot("ResolvedValues"))),
+				jen.Line(),
+				jen.If(jen.Qual(referencePkgPath, "ToPtrValues").Call(jen.Id("mrsp").Dot("ResolvedValues"), jen.Id(id)).Op("!=").Nil()).Block(
+					jen.Return(jen.Qual("github.com/pkg/errors", "Wrap").Call(jen.Err(), jen.Lit(strings.Join(ref.GoValueFieldPath, ".")))),
+				),
+				jen.Line(),
+				currentValuePath.Clone().Op("=").Id(id),
+			}
+			currentValuePath = jen.Qual(referencePkgPath, "FromPtrValues").Call(currentValuePath)
+		} else {
+			setResolvedValues = currentValuePath.Clone().Op("=").Id("mrsp").Dot("ResolvedValues")
 		}
 
 		return &jen.Statement{
@@ -205,37 +225,5 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 			referenceFieldPath.Clone().Op("=").Id("mrsp").Dot("ResolvedReferences"),
 			jen.Line(),
 		}
-	}
-}
-
-func getToPtrValueQual(t types.Type) string {
-	if types.Identical(t, types.NewPointer(types.Typ[types.Float64])) {
-		return "ToFloatPtrValue"
-	} else {
-		return "ToPtrValue"
-	}
-}
-
-func getFromPtrValueQual(t types.Type) string {
-	if types.Identical(t, types.NewPointer(types.Typ[types.Float64])) {
-		return "FromFloatPtrValue"
-	} else {
-		return "FromPtrValue"
-	}
-}
-
-func getToPtrValuesQual(t types.Type) string {
-	if types.Identical(t, types.NewSlice(types.NewPointer(types.Typ[types.Float64]))) {
-		return "ToFloatPtrValues"
-	} else {
-		return "ToPtrValues"
-	}
-}
-
-func getFromPtrValuesQual(t types.Type) string {
-	if types.Identical(t, types.NewSlice(types.NewPointer(types.Typ[types.Float64]))) {
-		return "FromFloatPtrValues"
-	} else {
-		return "FromPtrValues"
 	}
 }

@@ -65,6 +65,8 @@ type Reference struct {
 	IsPointer bool
 
 	SourceType types.Type
+
+	SourceName string
 }
 
 // ReferenceProcessorOption is used to configure ReferenceProcessor.
@@ -146,6 +148,7 @@ func (rp *ReferenceProcessor) Process(_ *types.Named, f *types.Var, _, comment s
 
 	rp.refs = append(rp.refs, Reference{
 		SourceType:          f.Type(),
+		SourceName:          f.Name(),
 		RemoteType:          getTypeCodeFromPath(refType),
 		RemoteListType:      getTypeCodeFromPath(refType, "List"),
 		Extractor:           extractorPath,
