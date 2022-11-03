@@ -64,8 +64,10 @@ type Reference struct {
 	// IsPointer tells whether the current value type is a pointer kind.
 	IsPointer bool
 
-	SourceType types.Type
+	// SourceType is the type of the value if the current value type is a
+	SourceType string
 
+	// SourceName is the name of the field that holds the reference.
 	SourceName string
 }
 
@@ -113,17 +115,22 @@ func (rp *ReferenceProcessor) Process(_ *types.Named, f *types.Var, _, comment s
 	refType := refTypeValues[0]
 	isPointer := false
 	isList := false
+
+	var sourceType string
+
 	// We don't support *[]string.
 	switch t := f.Type().(type) {
 	// *string
 	case *types.Pointer:
 		isPointer = true
+		sourceType = f.Type().(*types.Pointer).Elem().String()
 	// []string.
 	case *types.Slice:
 		isList = true
 		// []*string
 		if _, ok := t.Elem().(*types.Pointer); ok {
 			isPointer = true
+			sourceType = f.Type().(*types.Slice).Elem().(*types.Pointer).Elem().String()
 		}
 	}
 
@@ -147,7 +154,7 @@ func (rp *ReferenceProcessor) Process(_ *types.Named, f *types.Var, _, comment s
 	path := append([]string{rp.Receiver}, parentFields...)
 
 	rp.refs = append(rp.refs, Reference{
-		SourceType:          f.Type(),
+		SourceType:          sourceType,
 		SourceName:          f.Name(),
 		RemoteType:          getTypeCodeFromPath(refType),
 		RemoteListType:      getTypeCodeFromPath(refType, "List"),
