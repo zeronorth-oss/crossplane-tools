@@ -34,6 +34,10 @@ const (
 	source = `
 package v1alpha1
 
+type Configuration struct {
+	ID string
+}
+
 type ModelParameters struct {
 	// +crossplane:generate:reference:type=Apigatewayv2Api
 	APIID string

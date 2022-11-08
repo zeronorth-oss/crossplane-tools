@@ -130,6 +130,7 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 		var setResolvedValue *jen.Statement
 		var setResolvedValueFunc string
 		var currentValuePathFunc string
+		var inferredType string
 
 		if ref.IsPointer {
 			setResolvedValueFunc = "ToPtrValue"
@@ -139,8 +140,14 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 			currentValuePathFunc = "FromValue"
 		}
 
-		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(ref.SourceType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
-		setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Index(jen.Op(ref.SourceType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
+		if ref.BasicSourceType != "" {
+			inferredType = ref.BasicSourceType
+		} else {
+			inferredType = "string"
+		}
+
+		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
+		setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
 
 		return &jen.Statement{
 			jen.List(jen.Id("rsp"), jen.Err()).Op("=").Id("r").Dot("Resolve").Call(
@@ -164,7 +171,7 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 			jen.Line(),
 			setResolvedValue,
 			jen.Line(),
-			referenceFieldPath.Clone().Op("=").Index(jen.Op(ref.SourceType)).Id("rsp").Dot("ResolvedReference"),
+			referenceFieldPath.Clone().Op("=").Id("rsp").Dot("ResolvedReference"),
 			jen.Line(),
 		}
 	}
@@ -183,6 +190,7 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 		var setResolvedValues *jen.Statement
 		var setResolvedValueFunc string
 		var currentValuePathFunc string
+		var inferredType string
 
 		if ref.IsPointer {
 			setResolvedValueFunc = "ToPtrValues"
@@ -192,7 +200,13 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 			currentValuePathFunc = "FromValues"
 		}
 
-		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(ref.SourceType)).Call(jen.Id("rsp").Dot("ResolvedValues"))
+		if ref.BasicSourceType != nil {
+			inferredType = ref.BasicSourceType.Name()
+		} else {
+			inferredType = "string"
+		}
+
+		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValues"))
 		setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Call(jen.Id("rsp").Dot("ResolvedValues"))
 
 		return &jen.Statement{
