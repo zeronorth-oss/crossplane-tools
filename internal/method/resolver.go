@@ -207,8 +207,8 @@ func multiResolutionCall(ref Reference, referencePkgPath string) resolutionCallF
 			inferredType = "string"
 		}
 
-		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValues"))
-		setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Call(jen.Id("rsp").Dot("ResolvedValues"))
+		setResolvedValues = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValues"))
+		currentValuePath = jen.Qual(referencePkgPath, currentValuePathFunc).Call(currentValuePath)
 
 		return &jen.Statement{
 			jen.List(jen.Id("mrsp"), jen.Err()).Op("=").Id("r").Dot("ResolveMultiple").Call(
