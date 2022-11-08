@@ -140,14 +140,15 @@ func singleResolutionCall(ref Reference, referencePkgPath string) resolutionCall
 			currentValuePathFunc = "FromValue"
 		}
 
-		if ref.BasicSourceType != "" {
-			inferredType = ref.BasicSourceType
+		if ref.BasicSourceType != nil {
+			inferredType = ref.BasicSourceType.Name()
 		} else {
+			// If the reference is not a supported basic type, set it to string.
 			inferredType = "string"
 		}
 
-		currentValuePath = currentValuePath.Clone().Op("=").Qual(referencePkgPath, currentValuePathFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
 		setResolvedValue = currentValuePath.Clone().Op("=").Qual(referencePkgPath, setResolvedValueFunc).Index(jen.Op(inferredType)).Call(jen.Id("rsp").Dot("ResolvedValue"))
+		currentValuePath = jen.Qual(referencePkgPath, currentValuePathFunc).Call(currentValuePath)
 
 		return &jen.Statement{
 			jen.List(jen.Id("rsp"), jen.Err()).Op("=").Id("r").Dot("Resolve").Call(
